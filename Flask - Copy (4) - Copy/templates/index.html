@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Metadata</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f6fc;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 20px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+
+        h1 {
+            color: #00008B;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            white-space: nowrap;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            transition: background-color 0.3s;
+        }
+
+        th {
+            background-color: #ADD8E6;
+            color: #00008B;
+        }
+
+        a {
+            color: #1E90FF;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        a:hover {
+            color: #0000CD;
+        }
+
+        .download-link {
+            color: #008080;
+            font-weight: bold;
+        }
+
+        .download-link:hover {
+            color: #FF0000;
+            text-decoration: none;
+        }
+
+        tbody tr:hover {
+            background-color: #f0f0f0;
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+            text-align: right;
+        }
+
+        .search-box {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+            width: 200px;
+            transition: border-color 0.3s;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .search-button {
+            padding: 8px 12px;
+            border: none;
+            background-color: #00008B;
+            color: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .search-button:hover {
+            background-color: #0056b3;
+        }
+
+        .update-message {
+            padding: 10px;
+            background-color: #ffffcc;
+            border: 1px solid #cccccc;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .refresh-button {
+            padding: 8px 12px;
+            border: none;
+            background-color: #00008B;
+            color: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+        
+        .refresh-button:hover {
+            background-color: #0056b3;
+        }
+        
+        .refresh-button:active {
+            background-color: #003366;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+        
+        .search-button:active {
+            background-color: #003366;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <header style="background-color: #ADD8E6;
+                    color: #00008B;
+                    padding: 20px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;">
+        <div>
+            <h1 style="margin: 0;">Medical Image Database</h1>
+            {% if username %}
+            <p>Welcome, {{ username }}!</p>
+            {% endif %}
+        </div>
+        <div style="display: flex; align-items: center;">
+            <div style="margin-right: 10px;">
+                <input type="text" id="searchInput" class="search-box" placeholder="Search...">
+                <button onclick="searchTable()" class="search-button" id="searchButton">Search</button>
+            </div>
+            <button onclick="refreshPage()" class="refresh-button" style="margin-right: 10px;">Refresh</button>
+            {% if username %}
+            <form action="{{ url_for('logout') }}" method="post">
+                <button style="background-color: #f44336;
+                                color: white;
+                                padding: 8px 12px;
+                                border: none;
+                                border-radius: 5px;
+                                cursor: pointer;
+                                transition: background-color 0.3s, box-shadow 0.3s;"
+                        type="submit">Logout</button>
+            </form>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="container">
+        <table id="dataTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Modality</th>
+                   
+                    <th>Download</th>
+                    <th>Timestamp</th>
+                    <th>Compressed</th>
+                    <th>Patient ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data %}
+                <tr>
+                    <td>{{ row[0] }}</td>
+                    <td>{{ row[1] }}</td>
+                  
+                    <td><a href="/download/{{ row[3] }}" class="download-link">{{ row[2] }}</a></td>
+                    <td>{{ row[4] }}</td>
+                    <td>{{ row[5] }}</td>
+                    <td>{{ row[6] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.2.0/socket.io.js"></script>
+    <script>
+        var socket = io();
+
+        socket.on('update', function(message) {
+            var updatesContainer = document.getElementById('updates');
+            var updateMessage = document.createElement('div');
+            updateMessage.className = 'update-message';
+            updateMessage.textContent = message;
+            updatesContainer.appendChild(updateMessage);
+        });
+
+        function searchTable() {
+            var input, filter, table, tr, td, i, j;
+            input = document.getElementById("searchInput");
+            filter = input.value.toUpperCase();
+            table = document.getElementById("dataTable");
+            tr = table.getElementsByTagName("tr");
+
+            for (i = 0; i < tr.length; i++) {
+                tr[i].style.display = "none";
+                for (j = 0; j < tr[i].cells.length; j++) {
+                    td = tr[i].cells[j];
+                    if (td) {
+                        if (td.innerHTML.toUpperCase().indexOf(filter) > -1) {
+                            tr[i].style.display = "";
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        document.getElementById("searchInput").addEventListener("input", searchTable);
+
+        function refreshPage() {
+            location.reload();
+        }
+    </script>
+    <script src="https://cdn.botpress.cloud/webchat/v1/inject.js"></script>
+    <script src="https://mediafiles.botpress.cloud/fdf132fc-f17b-4a21-ae9d-f31f803c1b56/webchat/config.js" defer></script>
+</body>
+</html>
